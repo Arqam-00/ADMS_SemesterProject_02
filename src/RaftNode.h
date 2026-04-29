@@ -17,15 +17,13 @@ private:
         std::cout << "============== A Raft node has been initiated ===================\n"; 
         auto entries = store.readAll();
     
-        // state machine rebuild
-        for (auto& entry : entries) {
-            sm.apply(entry.getCommand());
-        }
-    
-        // Update lastApplied to last entry index
+        //state machine rebuild
+        for (auto& entry : entries) { sm.apply(entry.getCommand()); }
+        //Updated lastApplied to last entry index
         if (!entries.empty()) {
             store.setApplied(entries.back().index);
         }
+        //i know this is bad algorithm but we are not allowed to make a backup are we
     }
     
 public:
