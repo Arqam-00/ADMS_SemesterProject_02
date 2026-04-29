@@ -14,12 +14,17 @@ private:
     
     //Replay log on startup to recover from crash
     void replay() {
+        std::cout << "============== A Raft node has been initiated ===================\n"; 
         auto entries = store.readAll();
+    
+        // state machine rebuild
         for (auto& entry : entries) {
-            if (entry.index > store.getApplied()) {
-                sm.apply(entry.getCommand());
-                store.setApplied(entry.index);
-            }
+            sm.apply(entry.getCommand());
+        }
+    
+        // Update lastApplied to last entry index
+        if (!entries.empty()) {
+            store.setApplied(entries.back().index);
         }
     }
     

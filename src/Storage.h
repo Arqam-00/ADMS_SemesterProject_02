@@ -17,7 +17,8 @@ private:
     uint64_t commit;    //highest committed index
     uint64_t applied;      // highest applied to state machine
     std::string voted;
-    
+    uint64_t log_length;
+
     void save_meta() {
         std::ofstream f("raft.meta.tmp", std::ios::binary);
         for (int i = 0; i < 8; i++) f.put((term >> (i * 8)) & 0xFF);        //term 
@@ -50,7 +51,7 @@ private:
             save_meta();
             return;
         }
-        
+        std::cout << "============= Metadata found ==================";
         term = 0;
         for (int i = 0; i < 8; i++) term |= (uint64_t)(uint8_t)f.get() << (i * 8);
         uint32_t len = 0;
@@ -62,6 +63,7 @@ private:
         for (int i = 0; i < 8; i++) commit |= (uint64_t)(uint8_t)f.get() << (i * 8);
         applied = 0;
         for (int i = 0; i < 8; i++) applied |= (uint64_t)(uint8_t)f.get() << (i * 8);
+        std::cout << "Loaded: term=" << term << ", commit=" << commit << ", applied=" << applied << std::endl;
     }
     
 public:
@@ -71,6 +73,9 @@ public:
         if (log_fd < 0) {
             throw std::runtime_error("Cannot open raft.log");
         }
+        auto entries = readAll();
+        log_length = entries.size();
+        std::cout << "Storage initialized. Found " << log_length << " existing log entries\n";
     }
     
     ~Storage() {
@@ -81,19 +86,32 @@ public:
     }
     
     uint64_t getTerm() const { return term; }
-    void setTerm(uint64_t t) { term = t; save_meta(); }
+    void setTerm(uint64_t t) { 
+        term = t;
+        save_meta();
+     }
     uint64_t getCommit() const { return commit; }
-    void setCommit(uint64_t c) { commit = c; save_meta(); }
+    void setCommit(uint64_t c) { 
+        commit = c;
+        save_meta(); 
+        }
     uint64_t getApplied() const { return applied; }
-    void setApplied(uint64_t a) { applied = a; save_meta(); }
+    void setApplied(uint64_t a) { 
+        applied = a;
+        save_meta();
+    }
     std::string getVoted() const { return voted; }
-    void setVoted(const std::string& v) { voted = v; save_meta(); }
+    void setVoted(const std::string& v) { 
+        voted = v; 
+        save_meta();
+    }
     
     //Append a log entry to disk
     void append(const LogEntry& entry) {
         auto data = entry.serialize();
         write(log_fd, data.data(), data.size());
-        fsync(log_fd);  // pray to the disk gods
+        fsync(log_fd);  // pray to god
+        log_length++;
     }
     
     // Read all log entries from disk (for recovery purposes)
@@ -114,9 +132,7 @@ public:
     }
     
     uint64_t logLen() {
-        struct stat st;
-        fstat(log_fd, &st);
-        return st.st_size / 100;  //just estimating for now cause it was too comlicated
+        return log_length;
     }
 };
 

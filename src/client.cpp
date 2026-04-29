@@ -36,7 +36,7 @@ int main() {
             std::cout << buffer;
         }
         
-        if (cmd == "QUIT\n") break;
+        if (cmd == "QUIT\n"|| cmd == "quit\n" || cmd == "Quit\n") break;
     }
     
     close(sock);
