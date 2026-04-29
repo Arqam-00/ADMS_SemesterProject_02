@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 // cyclic redundancy check,i did not invent this
+//will try to convert it into assembly(only this function)
 static uint32_t crc32_compute(const void* data, size_t len) {
     static uint32_t table[256];
     static bool inited = false;
@@ -29,11 +30,11 @@ static uint32_t crc32_compute(const void* data, size_t len) {
     return crc ^ 0xFFFFFFFF;
 }
 //Facade pattern to make our lives less miserable
-uint32_t crc32_compute(const std::vector<char>& data) {
+inline uint32_t crc32_compute(const std::vector<char>& data) {
     return crc32_compute(data.data(), data.size());
 }
 
-uint32_t crc32_compute(const std::string& data) {
+inline uint32_t crc32_compute(const std::string& data) {
     return crc32_compute(data.data(), data.size());
 }
 
