@@ -1,0 +1,56 @@
+#include <iostream>
+<<<<<<< HEAD
+#include "TCP_server.h"
+
+int main() {
+    RaftNode raft;
+    TCPServer server(raft, 8080);
+=======
+#include <string>
+#include <vector>
+#include <sstream>
+#include <memory>
+#include "../include/TCP_server.h"
+#include "../include/Peer.h"
+
+int main(int argc, char* argv[]) {
+    int port = 8080; 
+    int node_id = 1; 
+    std::vector<std::shared_ptr<Peer>> peers;
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-port" && i + 1 < argc) {
+            port = std::stoi(argv[++i]);
+        }
+        else if (arg == "--peers" && i + 1 < argc) {
+            std::string peers_str = argv[++i];
+            std::stringstream ss(peers_str);
+            std::string token;
+            
+            while (std::getline(ss, token, ',')) {
+                size_t at_pos = token.find('@');
+                size_t colon_pos = token.find(':', at_pos);
+                if (at_pos != std::string::npos && colon_pos != std::string::npos) {
+                    int p_id = std::stoi(token.substr(0, at_pos));
+                    std::string p_ip = token.substr(at_pos + 1, colon_pos - at_pos - 1);
+                    int p_port = std::stoi(token.substr(colon_pos + 1));
+                    
+                    peers.push_back(std::make_shared<Peer>(p_id, p_ip, p_port));
+                }
+            }
+        }
+        else if (isdigit(arg[0])) {
+            node_id = std::stoi(arg);
+        }
+    }
+
+    std::cout << "[Node " << node_id << "] Starting..." << std::endl;
+    std::cout << "[Node " << node_id << "] Tracking " << peers.size() << " peers." << std::endl;
+    
+    RaftNode raft(node_id, peers); // <-- Fixed constructor!
+    TCPServer server(raft, port);
+>>>>>>> 70aea4a (Phase_02 Completed)
+    server.run();
+    return 0;
+}
