@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/raftkvid.dir/src/server.cpp.o -o raftkvid  -lpthread 

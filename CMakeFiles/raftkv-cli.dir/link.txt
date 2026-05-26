@@ -1,0 +1,1 @@
+/usr/bin/c++ "CMakeFiles/raftkv-cli.dir/src/client.cpp.o" -o raftkv-cli  -lpthread 
