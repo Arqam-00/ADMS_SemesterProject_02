@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <algorithm>
-#include "Command.h"
+#include "../include/Command.h"
 
 int main(int argc, char* argv[]) {
     std::string ip = "127.0.0.1";

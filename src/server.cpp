@@ -5,8 +5,8 @@
 #include <memory>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "TCP_server.h"
-#include "Peer.h"
+#include "../include/TCP_server.h"
+#include "../include/Peer.h"
 
 int main(int argc, char* argv[]) {
     int port = 8080; 
