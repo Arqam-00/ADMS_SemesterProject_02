@@ -6,79 +6,77 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstring>
-#include <thread>
-#include <sstream>
-#include <algorithm>
 #include <iostream>
-//made it as a class so we can make multiple objects for different servers in multiple mains
+#include <vector>
+#include <thread>
+
 class TCPServer {
 private:
     RaftNode& raft;
     int server_fd;
     bool running;
-    
+
     void handleClient(int client_fd) {
         char buffer[4096];
         while (running) {
             memset(buffer, 0, sizeof(buffer));
             int n = read(client_fd, buffer, sizeof(buffer) - 1);
             if (n <= 0) break;
-            std::string request(buffer);
-            request.erase(request.find_last_not_of("\n\r") + 1);
-            std::string response = processCommand(request);
-            response += "\n";
-            write(client_fd, response.c_str(), response.size());
-            if (request == "QUIT" || request == "quit" || request == "Quit") break;
+
+            char msg_type = buffer[0];
+            std::string response = "";
+
+            if (msg_type == 'Q') {
+                break;
+            }
+            else if (msg_type == 'S') {
+                response = raft.getStatus();
+                write(client_fd, response.c_str(), response.size());
+            }
+            else if (msg_type == 'G') {
+                std::string key(buffer + 1, buffer + n - 1);
+                std::string val = raft.get(key);
+                response = val.empty() ? "(null)\n" : val + "\n";
+                write(client_fd, response.c_str(), response.size());
+            }
+            else if (msg_type == 'C') {
+                try {
+                    std::vector<char> bin_data(buffer + 1, buffer + n);
+                    Command cmd = Command::deserialize(bin_data);
+                    raft.submit(cmd);
+                    response = "OK\n";
+                }
+                catch (const std::exception& e) {
+                    response = "ERROR: " + std::string(e.what()) + "\n";
+                }
+                write(client_fd, response.c_str(), response.size());
+            }
+            else if (msg_type == 'V') {
+                // Pass the whole buffer, let deserialize skip the 'V'
+                std::vector<char> bin_data(buffer, buffer + n); 
+                RequestVote rpc = RequestVote::deserialize(bin_data);
+                RequestVoteResponse voteResp = raft.handleRequestVote(rpc);
+                
+                auto resp_data = voteResp.serialize();
+                write(client_fd, resp_data.data(), resp_data.size());
+            }
+            else if (msg_type == 'A') {
+                // Pass the whole buffer, let deserialize skip the 'A'
+                std::vector<char> bin_data(buffer, buffer + n); 
+                AppendEntries rpc = AppendEntries::deserialize(bin_data);
+                AppendEntriesResponse aeResp = raft.handleAppendEntries(rpc);
+                
+                auto resp_data = aeResp.serialize();
+                write(client_fd, resp_data.data(), resp_data.size());
+            }
+            else {
+                response = "ERROR: Unknown Protocol\n";
+                write(client_fd, response.c_str(), response.size());
+            }
         }
         close(client_fd);
-        std::cout << "Client disconnected" << std::endl;
     }
-    
-    std::string processCommand(const std::string& cmd) {
-        std::istringstream iss(cmd);
-        std::string op;
-        iss >> op;
-        std::transform(op.begin(), op.end(), op.begin(), ::toupper);
-        if (op == "GET") {
-            std::string key;
-            iss >> key;
-            if (key.empty()) return "ERROR: GET requires key";
-            std::string val = raft.get(key);
-            return val.empty() ? "NULL" : val;
-        }
-        else if (op == "PUT") {
-            std::string key, value;
-            iss >> key >> value;
-            if (key.empty() || value.empty()) return "ERROR: PUT requires key and value";
-            try {
-                raft.submit(cmd);
-                return "OK";
-            } catch (const std::exception& e) {
-                return "ERROR: " + std::string(e.what());
-            }
-        }
-        else if (op == "DELETE") {
-            std::string key;
-            iss >> key;
-            if (key.empty()) return "ERROR: DELETE requires key";
-            try {
-                raft.submit(cmd);
-                return "OK";
-            } catch (const std::exception& e) {
-                return "ERROR: " + std::string(e.what());
-            }
-        }
-        else if (op == "STATUS") {
-            return raft.getStatus();
-        }
-        else if (op == "QUIT") {
-            return "Goodbye";
-        }
-        else {
-            return "ERROR: Unknown command. Commands: PUT, GET, DELETE, STATUS, QUIT";
-        }
-    }
-    
+
 public:
     TCPServer(RaftNode& r, int port) : raft(r), running(true) {
         server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -91,19 +89,21 @@ public:
         bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
         listen(server_fd, 5);
     }
-    
+
     ~TCPServer() {
         running = false;
         close(server_fd);
     }
-    
+
     void run() {
-        std::cout << "Server listening on port 8080" << std::endl;
+        std::cout << "Server ready for client commands and peer RPCs..." << std::endl;
         while (running) {
-            int client_fd = accept(server_fd, nullptr, nullptr);
+            struct sockaddr_in client_addr;
+            socklen_t client_len = sizeof(client_addr);
+            int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
             if (client_fd >= 0) {
-                std::cout << "Client connected!" << std::endl;
-                std::thread([this, client_fd]() { handleClient(client_fd); }).detach();
+                // Spawn a new background thread for every connection so peers don't block clients
+                std::thread(&TCPServer::handleClient, this, client_fd).detach();
             }
         }
     }

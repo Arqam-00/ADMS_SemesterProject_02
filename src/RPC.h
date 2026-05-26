@@ -5,7 +5,9 @@
 #include <vector>
 #include <cstdint>
 #include <stdexcept>
-
+// A = Append entries ,reponse = R
+// v = Vote ,response = W
+// 
 inline void push_uint64(std::vector<char>& v, uint64_t val) {
     for (int i = 0; i < 8; i++) v.push_back((val >> (i * 8)) & 0xFF);
 }
@@ -55,7 +57,9 @@ struct AppendEntries {
         rpc.leaderCommit = read_uint64(data, offset);
         
         uint32_t count = 0;
+        //num of enteries
         for (int i = 0; i < 4; i++) count |= (uint32_t)(uint8_t)data[offset++] << (i * 8);
+        //entries
         for (uint32_t i = 0; i < count; i++) {
             uint32_t len = 0;
             for (int j = 0; j < 4; j++) len |= (uint32_t)(uint8_t)data[offset++] << (j * 8);

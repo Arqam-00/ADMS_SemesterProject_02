@@ -12,18 +12,21 @@
 
 class Peer {
 private:
+    // Peer's Data
     int id;
     std::string ip;
     int port;
+    // For Connection State
     int sock_fd;
     bool connected;
     bool running;
+    //Threading
     std::thread connector_thread;
     std::mutex send_mutex;
 
     void connectLoop() {
         while (running) {
-            if (!connected) {
+            if (!connected) { // agar connect nhi hai to peer k sath connection dubara try karo
                 sock_fd = socket(AF_INET, SOCK_STREAM, 0);
                 
                 // Set a 50ms read timeout so waiting for RPC responses doesn't freeze the node
@@ -52,6 +55,7 @@ private:
 public:
     Peer(int peer_id, const std::string& peer_ip, int peer_port) 
         : id(peer_id), ip(peer_ip), port(peer_port), sock_fd(-1), connected(false), running(true) {
+            // makes a thread for this object to run
         connector_thread = std::thread(&Peer::connectLoop, this);
     }
 
@@ -62,9 +66,10 @@ public:
     }
 
     int getId() const { return id; }
-
+    //sends an RPC and gets back the reply
     // This now waits for and returns the response from the other server!
     std::vector<char> sendRPC(const std::vector<char>& data) {
+        // locking the thread so same socket is reserved for this thread only
         std::lock_guard<std::mutex> lock(send_mutex);
         if (connected) {
             if (send(sock_fd, data.data(), data.size(), 0) < 0) {
