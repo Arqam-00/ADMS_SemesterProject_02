@@ -15,188 +15,237 @@
 #include <random>
 #include <iostream>
 
-enum class NodeState {
-    FOLLOWER,
-    CANDIDATE,
-    LEADER
-};
+enum class NodeState { FOLLOWER, CANDIDATE, LEADER };
 
-//The main Raft node , now with brand new elections
 class RaftNode {
 private:
     Storage store;
     StateMachine sm;
-    
-    // Cluster membership
+
     int node_id;
     std::vector<std::shared_ptr<Peer>> peers;
-    
-    // Threading and state
+
     mutable std::mutex mtx;
     NodeState state;
     bool running;
     std::chrono::time_point<std::chrono::steady_clock> last_heartbeat;
     int current_timeout;
     std::thread background_thread;
-    
-    //Replay log on startup to recover from crash
+    int current_leader_id;   // will be 0 if unknown(start)
+
+    std::vector<uint64_t> nextIndex;
+    std::vector<uint64_t> matchIndex;
+
     void replay() {
-        std::cout << "============== A Raft node has been initiated ===================\n"; 
+        std::cout << "============== Raft node " << node_id << " initiated ===================\n";
         auto entries = store.readAll();
-    
-        //state machine rebuild 
-        for (auto& entry : entries) { sm.apply(entry.getCommand()); }
-        //Updated lastApplied to last entry index
+        for (auto& entry : entries) {
+            sm.apply(entry.getCommand());
+        }
         if (!entries.empty()) {
             store.setApplied(entries.back().index);
             store.setCommit(entries.back().index);
         }
-        //i know this is bad algorithm but we are not allowed to make a backup are we
     }
-    
-    //  Generate random timeout
+
     int getRandomTimeout() {
         static std::random_device rd;
         static std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dist(300, 500);
+        std::uniform_int_distribution<> dist(800, 1200);
         return dist(gen);
     }
-    
-    // Background election/heartbeat loop
+
+    void startElection(std::unique_lock<std::mutex>& lock) {
+        state = NodeState::CANDIDATE;
+        store.setTerm(store.getTerm() + 1);
+        store.setVoted(std::to_string(node_id));
+        last_heartbeat = std::chrono::steady_clock::now();
+        current_timeout = getRandomTimeout();
+
+        std::cout << "\n[Node " << node_id << "] Election timeout! Starting election for term " << store.getTerm() << "\n";
+
+        RequestVote rpc;
+        rpc.term = store.getTerm();
+        rpc.candidateId = node_id;
+        rpc.lastLogIndex = store.getLastLogIndex();
+        rpc.lastLogTerm = store.getLastLogTerm();
+
+        auto payload = rpc.serialize();
+        int votes = 1;
+
+        lock.unlock();
+        for (auto& peer : peers) {
+            std::vector<char> resp_data = peer->sendRPC(payload);
+            if (!resp_data.empty() && resp_data[0] == 'W') {
+                RequestVoteResponse resp = RequestVoteResponse::deserialize(resp_data);
+                if (resp.term > store.getTerm()) {
+                    lock.lock();
+                    if (resp.term > store.getTerm()) {
+                        store.setTerm(resp.term);
+                        state = NodeState::FOLLOWER;
+                        store.setVoted("");
+                        last_heartbeat = std::chrono::steady_clock::now();
+                        current_timeout = getRandomTimeout();
+                        lock.unlock();
+                        return;
+                    }
+                    lock.lock();
+                } else if (resp.voteGranted) {
+                    votes++;
+                }
+            }
+        }
+        lock.lock();
+
+        int majority = (peers.size() + 1) / 2 + 1;
+        if (votes >= majority && state == NodeState::CANDIDATE) {
+            becomeLeader();
+        } else {
+            std::cout << "[Node " << node_id << "] Election finished with " << votes << " votes (need " << majority << ").\n";
+        }
+    }
+
+    void becomeLeader() {
+        if (state != NodeState::CANDIDATE) return;
+        state = NodeState::LEADER;
+        current_leader_id = node_id;   // I am the leader
+        uint64_t last = store.getLastLogIndex();
+        nextIndex.assign(peers.size(), last + 1);
+        matchIndex.assign(peers.size(), 0);
+        Command noop(OpType::NOOP);
+        uint64_t new_idx = store.logLen() + 1;
+        LogEntry entry(store.getTerm(), new_idx, noop);
+        store.append(entry);
+        std::cout << "\n*** [Node " << node_id << "] IS NOW LEADER FOR TERM " << store.getTerm() << " ***\n";
+    }
+
+    void sendAppendEntries(size_t peer_idx) {
+        auto& peer = peers[peer_idx];
+        AppendEntries ae;
+        ae.term = store.getTerm();
+        ae.leaderId = node_id;
+        ae.leaderCommit = store.getCommit();
+        ae.prevLogIndex = nextIndex[peer_idx] - 1;
+        ae.prevLogTerm = (ae.prevLogIndex == 0) ? 0 : store.getTermAt(ae.prevLogIndex);
+        if (nextIndex[peer_idx] <= store.getLastLogIndex()) {
+            auto entries = store.readFrom(nextIndex[peer_idx]);
+            for (auto& e : entries) ae.entries.push_back(e);
+        }
+        auto payload = ae.serialize();
+        std::vector<char> resp_data = peer->sendRPC(payload);
+        if (!resp_data.empty() && resp_data[0] == 'R') {
+            AppendEntriesResponse resp = AppendEntriesResponse::deserialize(resp_data);
+            if (resp.term > store.getTerm()) {
+                std::lock_guard<std::mutex> lock(mtx);
+                store.setTerm(resp.term);
+                state = NodeState::FOLLOWER;
+                store.setVoted("");
+                return;
+            } else if (resp.success) {
+                uint64_t last_sent = ae.prevLogIndex + ae.entries.size();
+                matchIndex[peer_idx] = std::max(matchIndex[peer_idx], last_sent);
+                nextIndex[peer_idx] = matchIndex[peer_idx] + 1;
+                advanceCommitIndex();
+            } else {
+                if (nextIndex[peer_idx] > 1) nextIndex[peer_idx]--;
+            }
+        }
+    }
+
+    void advanceCommitIndex() {
+        uint64_t new_commit = store.getCommit();
+        for (uint64_t idx = new_commit + 1; idx <= store.getLastLogIndex(); ++idx) {
+            if (store.getTermAt(idx) != store.getTerm()) continue;
+            int count = 1;
+            for (size_t j = 0; j < peers.size(); ++j) {
+                if (matchIndex[j] >= idx) count++;
+            }
+            if (count >= (peers.size()+1)/2 + 1) {
+                new_commit = idx;
+            } else break;
+        }
+        if (new_commit > store.getCommit()) {
+            store.setCommit(new_commit);
+            applyCommitted();
+        }
+    }
+
+    void applyCommitted() {
+        uint64_t last_applied = store.getApplied();
+        uint64_t commit = store.getCommit();
+        if (commit > last_applied) {
+            auto entries = store.readRange(last_applied + 1, commit);
+            for (auto& e : entries) {
+                sm.apply(e.getCommand());
+            }
+            store.setApplied(commit);
+        }
+    }
+
     void backgroundLoop() {
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            
             std::unique_lock<std::mutex> lock(mtx);
-            
+
             if (state == NodeState::LEADER) {
                 auto now = std::chrono::steady_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count();
-                
-                if (elapsed >= 100) {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count() >= 200) {
                     last_heartbeat = now;
-                    AppendEntries heartbeat;
-                    heartbeat.term = store.getTerm();
-                    heartbeat.leaderId = node_id;
-                    heartbeat.prevLogIndex = store.logLen();
-                    heartbeat.prevLogTerm = 0; 
-                    heartbeat.leaderCommit = store.getCommit();
-                    
-                    auto payload = heartbeat.serialize();
-                    
                     lock.unlock();
-                    for (auto& peer : peers) {
-                        peer->sendRPC(payload);
+                    for (size_t i = 0; i < peers.size(); ++i) {
+                        sendAppendEntries(i);
                     }
                     lock.lock();
                 }
             } else {
                 auto now = std::chrono::steady_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count();
-                
-                if (elapsed >= current_timeout) {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count() >= current_timeout) {
                     startElection(lock);
                 }
             }
         }
     }
-    
-    void startElection(std::unique_lock<std::mutex>& lock) {
-        state = NodeState::CANDIDATE;
-        
-        if (store.getTerm() > 1000000) store.setTerm(0);
-        
-        store.setTerm(store.getTerm() + 1);
-        store.setVoted(std::to_string(node_id)); 
-        last_heartbeat = std::chrono::steady_clock::now(); 
-        current_timeout = getRandomTimeout();
-        
-        std::cout << "\n[Node " << node_id << "] Election timeout! Converting to CANDIDATE.\n";
-        std::cout << "[Node " << node_id << "] Starting election for term " << store.getTerm() << "\n";
-        
-        RequestVote rpc;
-        rpc.term = store.getTerm();
-        rpc.candidateId = node_id;
-        rpc.lastLogIndex = store.logLen();
-        rpc.lastLogTerm = 0; 
-        
-        auto payload = rpc.serialize();
-        int votes = 1;
-        
-        lock.unlock();
-        
-        for (auto& peer : peers) {
-            std::vector<char> resp_data = peer->sendRPC(payload);
-            if (!resp_data.empty() && resp_data[0] == 'W') {
-                
-                RequestVoteResponse resp = RequestVoteResponse::deserialize(resp_data);
-                
-                if (resp.voteGranted) {
-                    votes++;
-                }
-            }
-        }
-        
-        lock.lock();
-        
-        if (votes >= 3 && state == NodeState::CANDIDATE) {
-            std::cout << "[Node " << node_id << "] Won election with " << votes << " votes!\n";
-            becomeLeader();
-        } else {
-            std::cout << "[Node " << node_id << "] Election finished with " << votes << " votes. Waiting...\n";
-        }
-    }
-    
+
 public:
-    RaftNode(int id, std::vector<std::shared_ptr<Peer>> cluster_peers) 
-        : node_id(id), peers(cluster_peers), state(NodeState::FOLLOWER), running(true) {
+    RaftNode(int id, std::vector<std::shared_ptr<Peer>> cluster_peers)
+        : node_id(id), peers(cluster_peers), state(NodeState::FOLLOWER), running(true), current_leader_id(0) {
         replay();
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
         background_thread = std::thread(&RaftNode::backgroundLoop, this);
     }
-    
+
     ~RaftNode() {
         running = false;
-        if (background_thread.joinable()) {
-            background_thread.join();
-        }
+        if (background_thread.joinable()) background_thread.join();
     }
-    
-    // Accept a command from client
+
     void submit(const Command& cmd) {
         std::lock_guard<std::mutex> lock(mtx);
-        if (state != NodeState::LEADER) {
-            throw std::runtime_error("NOT_LEADER");
-        }
-        
-        uint64_t new_idx = store.logLen() + 1;
-        LogEntry entry(store.getTerm(), new_idx, cmd);
+        if (state != NodeState::LEADER) throw std::runtime_error("NOT_LEADER");
+        uint64_t idx = store.logLen() + 1;
+        LogEntry entry(store.getTerm(), idx, cmd);
         store.append(entry);
-        
-        store.setCommit(new_idx);
-        sm.apply(cmd);
-        store.setApplied(new_idx);
     }
-    
-    //const and thread-safe
+
     std::string get(const std::string& key) const {
         std::lock_guard<std::mutex> lock(mtx);
         return sm.get(key);
     }
-    
+
     std::string getStatus() const {
         std::lock_guard<std::mutex> lock(mtx);
         std::ostringstream oss;
-        oss << "node_id:\n" << node_id << "\n";
-        oss << "state:\n" << (state == NodeState::LEADER ? "LEADER" : (state == NodeState::CANDIDATE ? "CANDIDATE" : "FOLLOWER")) << "\n";
-        oss << "term:\n" << store.getTerm() << "\n";
-        oss << "log length:\n" << store.logLen() << "\n";
-        oss << "commitIndex:\n" << store.getCommit() << "\n";
+        oss << "node_id: " << node_id << "\n";
+        oss << "state: " << (state == NodeState::LEADER ? "LEADER" : (state == NodeState::CANDIDATE ? "CANDIDATE" : "FOLLOWER")) << "\n";
+        oss << "term: " << store.getTerm() << "\n";
+        oss << "log length: " << store.logLen() << "\n";
+        oss << "commitIndex: " << store.getCommit() << "\n";
         return oss.str();
     }
-    
-    // NEW: Handle vote requests
+
+    int getLeaderId() const { return current_leader_id; }
+
     RequestVoteResponse handleRequestVote(const RequestVote& rpc) {
         std::lock_guard<std::mutex> lock(mtx);
         RequestVoteResponse resp;
@@ -208,22 +257,24 @@ public:
         if (rpc.term > store.getTerm()) {
             store.setTerm(rpc.term);
             state = NodeState::FOLLOWER;
-            store.setVoted(""); 
+            store.setVoted("");
             resp.term = rpc.term;
         }
 
         std::string votedFor = store.getVoted();
-        if (votedFor == "" || votedFor == std::to_string(rpc.candidateId)) {
+        bool logOk = (rpc.lastLogTerm > store.getLastLogTerm()) ||
+                     (rpc.lastLogTerm == store.getLastLogTerm() && rpc.lastLogIndex >= store.getLastLogIndex());
+
+        if ((votedFor.empty() || votedFor == std::to_string(rpc.candidateId)) && logOk) {
             store.setVoted(std::to_string(rpc.candidateId));
             resp.voteGranted = true;
-            last_heartbeat = std::chrono::steady_clock::now(); 
+            last_heartbeat = std::chrono::steady_clock::now();
             current_timeout = getRandomTimeout();
             std::cout << "[Node " << node_id << "] Voted for Node " << rpc.candidateId << " in term " << rpc.term << "\n";
         }
         return resp;
     }
-    
-    // NEW: Handle heartbeats
+
     AppendEntriesResponse handleAppendEntries(const AppendEntries& rpc) {
         std::lock_guard<std::mutex> lock(mtx);
         AppendEntriesResponse resp;
@@ -232,26 +283,49 @@ public:
 
         if (rpc.term < store.getTerm()) return resp;
 
-        if (rpc.term >= store.getTerm()) {
+        if (rpc.term > store.getTerm()) {
             store.setTerm(rpc.term);
-            if (state != NodeState::FOLLOWER) {
-                std::cout << "[Node " << node_id << "] Discovered Leader " << rpc.leaderId << ", stepping down to FOLLOWER.\n";
-            }
             state = NodeState::FOLLOWER;
-            last_heartbeat = std::chrono::steady_clock::now(); 
-            current_timeout = getRandomTimeout();
-            resp.term = rpc.term;
-            resp.success = true; 
+            store.setVoted("");
         }
+        // Always reset election timeout and update leader id
+        last_heartbeat = std::chrono::steady_clock::now();
+        current_timeout = getRandomTimeout();
+        current_leader_id = rpc.leaderId;    //  updating leader id
+        resp.term = rpc.term;
+
+        // Log matching check
+        if (rpc.prevLogIndex > 0) {
+            if (rpc.prevLogIndex > store.getLastLogIndex()) return resp;
+            if (store.getTermAt(rpc.prevLogIndex) != rpc.prevLogTerm) return resp;
+        }
+
+        // Conflict resolution
+        uint64_t start = rpc.prevLogIndex + 1;
+        for (size_t i = 0; i < rpc.entries.size(); ++i) {
+            uint64_t idx = start + i;
+            if (idx <= store.getLastLogIndex()) {
+                if (store.getTermAt(idx) != rpc.entries[i].term) {
+                    store.truncate(idx - 1);
+                }
+            }
+        }
+        // Append new entries
+        for (const auto& entry : rpc.entries) {
+            if (entry.index > store.getLastLogIndex()) {
+                store.append(entry);
+            }
+        }
+
+        // Update commit index
+        if (rpc.leaderCommit > store.getCommit()) {
+            uint64_t new_commit = std::min(rpc.leaderCommit, store.getLastLogIndex());
+            store.setCommit(new_commit);
+            applyCommitted();
+        }
+
+        resp.success = true;
         return resp;
-    }
-    
-    // NEW: Become leader
-    void becomeLeader() {
-        if (state == NodeState::CANDIDATE) {
-            state = NodeState::LEADER;
-            std::cout << "\n*** [Node " << node_id << "] IS NOW THE LEADER FOR TERM " << store.getTerm() << " ***\n\n";
-        }
     }
 };
 

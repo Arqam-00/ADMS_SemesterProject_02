@@ -46,26 +46,31 @@ private:
                     raft.submit(cmd);
                     response = "OK\n";
                 }
-                catch (const std::exception& e) {
-                    response = "ERROR: " + std::string(e.what()) + "\n";
+                catch (const std::runtime_error& e) {
+                    if (std::string(e.what()) == "NOT_LEADER") {
+                        int leader_id = raft.getLeaderId();
+                        if (leader_id != 0) {
+                            response = "NOT_LEADER leader_id=" + std::to_string(leader_id) + "\n";
+                        } else {
+                            response = "NOT_LEADER unknown\n";
+                        }
+                    } else {
+                        response = "ERROR: " + std::string(e.what()) + "\n";
+                    }
                 }
                 write(client_fd, response.c_str(), response.size());
             }
             else if (msg_type == 'V') {
-                // Pass the whole buffer, let deserialize skip the 'V'
-                std::vector<char> bin_data(buffer, buffer + n); 
+                std::vector<char> bin_data(buffer, buffer + n);
                 RequestVote rpc = RequestVote::deserialize(bin_data);
                 RequestVoteResponse voteResp = raft.handleRequestVote(rpc);
-                
                 auto resp_data = voteResp.serialize();
                 write(client_fd, resp_data.data(), resp_data.size());
             }
             else if (msg_type == 'A') {
-                // Pass the whole buffer, let deserialize skip the 'A'
-                std::vector<char> bin_data(buffer, buffer + n); 
+                std::vector<char> bin_data(buffer, buffer + n);
                 AppendEntries rpc = AppendEntries::deserialize(bin_data);
                 AppendEntriesResponse aeResp = raft.handleAppendEntries(rpc);
-                
                 auto resp_data = aeResp.serialize();
                 write(client_fd, resp_data.data(), resp_data.size());
             }
@@ -102,7 +107,6 @@ public:
             socklen_t client_len = sizeof(client_addr);
             int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
             if (client_fd >= 0) {
-                // Spawn a new background thread for every connection so peers don't block clients
                 std::thread(&TCPServer::handleClient, this, client_fd).detach();
             }
         }

@@ -5,47 +5,54 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
 #include <iostream>
 
 class Peer {
 private:
-    // Peer's Data
     int id;
     std::string ip;
     int port;
-    // For Connection State
     int sock_fd;
-    bool connected;
-    bool running;
-    //Threading
-    std::thread connector_thread;
-    std::mutex send_mutex;
+    std::atomic<bool> connected;
+    std::atomic<bool> running;
+    std::thread bg_thread;
+    mutable std::mutex mtx;
+    std::condition_variable cv;
 
-    void connectLoop() {
+    void backgroundConnect() {
         while (running) {
-            if (!connected) { // agar connect nhi hai to peer k sath connection dubara try karo
-                sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-                
-                // Set a 50ms read timeout so waiting for RPC responses doesn't freeze the node
-                struct timeval tv;
-                tv.tv_sec = 0;
-                tv.tv_usec = 50000; 
-                setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+            if (!connected) {
+                int fd = socket(AF_INET, SOCK_STREAM, 0);
+                if (fd >= 0) {
+                    // 1 second timeout for connect, send, recv
+                    struct timeval tv;
+                    tv.tv_sec = 1;
+                    tv.tv_usec = 0;
+                    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+                    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
-                struct sockaddr_in addr;
-                addr.sin_family = AF_INET;
-                addr.sin_port = htons(port);
-                inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
+                    struct sockaddr_in addr;
+                    addr.sin_family = AF_INET;
+                    addr.sin_port = htons(port);
+                    inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
 
-                if (connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-                    connected = true;
-                } else {
-                    close(sock_fd);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    if (::connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
+                        std::lock_guard<std::mutex> lock(mtx);
+                        if (sock_fd >= 0) close(sock_fd);
+                        sock_fd = fd;
+                        connected = true;
+                        cv.notify_all();   // wake any waiting sendRPC
+                        continue;
+                    }
+                    close(fd);
                 }
+                std::this_thread::sleep_for(std::chrono::milliseconds(300));
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
@@ -53,40 +60,43 @@ private:
     }
 
 public:
-    Peer(int peer_id, const std::string& peer_ip, int peer_port) 
+    Peer(int peer_id, const std::string& peer_ip, int peer_port)
         : id(peer_id), ip(peer_ip), port(peer_port), sock_fd(-1), connected(false), running(true) {
-            // makes a thread for this object to run
-        connector_thread = std::thread(&Peer::connectLoop, this);
+        bg_thread = std::thread(&Peer::backgroundConnect, this);
     }
 
     ~Peer() {
         running = false;
-        if (connector_thread.joinable()) connector_thread.join();
+        if (bg_thread.joinable()) bg_thread.join();
+        std::lock_guard<std::mutex> lock(mtx);
         if (sock_fd >= 0) close(sock_fd);
     }
 
     int getId() const { return id; }
-    //sends an RPC and gets back the reply
-    // This now waits for and returns the response from the other server!
-    std::vector<char> sendRPC(const std::vector<char>& data) {
-        // locking the thread so same socket is reserved for this thread only
-        std::lock_guard<std::mutex> lock(send_mutex);
-        if (connected) {
-            if (send(sock_fd, data.data(), data.size(), 0) < 0) {
-                connected = false;
-                close(sock_fd);
-                sock_fd = -1;
-                return {};
-            }
-            
-            // Wait for the vote/heartbeat response
-            char buffer[4096];
-            memset(buffer, 0, sizeof(buffer));
-            int n = recv(sock_fd, buffer, sizeof(buffer) - 1, 0);
-            if (n > 0) {
-                return std::vector<char>(buffer, buffer + n);
-            }
+
+    std::vector<char> sendRPC(const std::vector<char>& request) {
+        std::unique_lock<std::mutex> lock(mtx);
+        // Wait up to 1second for background thread to connect
+        if (!connected) {
+            cv.wait_for(lock, std::chrono::seconds(1), [this]{ return connected.load(); });
         }
+        if (!connected) return {};
+
+        if (send(sock_fd, request.data(), request.size(), 0) < 0) {
+            connected = false;
+            close(sock_fd);
+            sock_fd = -1;
+            return {};
+        }
+
+        char buffer[65536];
+        int n = recv(sock_fd, buffer, sizeof(buffer), 0);
+        if (n > 0) {
+            return std::vector<char>(buffer, buffer + n);
+        }
+        connected = false;
+        close(sock_fd);
+        sock_fd = -1;
         return {};
     }
 };
