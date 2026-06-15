@@ -48,9 +48,11 @@
                             sock_fd = fd;
                             connected = true;
                             cv.notify_all();   // wake any waiting sendRPC
+                            //std::this_thread::sleep_for(std::chrono::milliseconds(10 * id));
                             std::cerr << "[Peer " << id << "] Connected to " << ip << ":" << port << std::endl;
                             continue;
                         }else{
+                            //std::this_thread::sleep_for(std::chrono::milliseconds(10 * id));
                             std::cerr << "[Peer " << id << "] Failed to connect with " << ip << ":" << port 
                              << " errno=" << errno << " (" << strerror(errno) << ")" <<  std::endl;
                         }
@@ -77,7 +79,8 @@
         }
 
         int getId() const { return id; }
-
+        bool isConnected() const { return connected; }
+        
         std::vector<char> sendRPC(const std::vector<char>& request) {
             std::unique_lock<std::mutex> lock(mtx);
             // Wait up to 1second for background thread to connect
