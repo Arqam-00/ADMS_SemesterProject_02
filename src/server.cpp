@@ -9,7 +9,9 @@
     #include "../include/Peer.h"
 
     int main(int argc, char* argv[]) {
-        int port = 8080; 
+        int client_port = 6001;
+        int raft_port = 7001;
+
         int node_id = 1; 
         std::string data_dir = ".";
         std::vector<std::shared_ptr<Peer>> peers;
@@ -21,10 +23,10 @@
                 node_id = std::stoi(argv[++i]);
             }
             else if (arg == "--port" && i + 1 < argc) {
-                port = std::stoi(argv[++i]);
+                client_port = std::stoi(argv[++i]);
             }
             else if (arg == "--raft-port" && i + 1 < argc) {
-                ++i;
+                raft_port = std::stoi(argv[++i]);
             }
             else if (arg == "--peers" && i + 1 < argc) {
                 std::string peers_str = argv[++i];
@@ -49,7 +51,7 @@
                 chdir(data_dir.c_str());
             }
             else if (arg == "-port" && i + 1 < argc) {
-                port = std::stoi(argv[++i]);
+                client_port = std::stoi(argv[++i]);
             }
             else if (isdigit(arg[0])) {
                 node_id = std::stoi(arg);
@@ -60,9 +62,15 @@
         std::cout << "[Node " << node_id << "] Tracking " << peers.size() << " peers." << std::endl;
         
         RaftNode raft(node_id, peers);
-        TCPServer server(raft, port);
-        std::thread server_thread(&TCPServer::run, &server);
+        TCPServer server(raft, client_port, raft_port);
+
+        std::thread client_thread(&TCPServer::RunClient, &server);
+        std::thread raft_thread(&TCPServer::RunRaft, &server);
+
         raft.startBackground();
-        server_thread.join();
+
+
+        client_thread.join();
+        raft_thread.join();
         return 0;
     }

@@ -219,7 +219,7 @@ public:
         replay();
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
-        if (node_id == 1) current_timeout = 0; // for debugging
+        //if (node_id == 1) current_timeout = 0; // for debugging
     }
 
     void startBackground() { 
