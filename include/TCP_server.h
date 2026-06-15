@@ -34,7 +34,7 @@ private:
                 write(client_fd, response.c_str(), response.size());
             }
             else if (msg_type == 'G') {
-                std::string key(buffer + 1, buffer + n - 1);
+                std::string key(buffer + 1, buffer + n);
                 std::string val = raft.get(key);
                 response = val.empty() ? "(null)\n" : val + "\n";
                 write(client_fd, response.c_str(), response.size());

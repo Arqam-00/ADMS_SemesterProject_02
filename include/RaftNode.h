@@ -74,16 +74,13 @@ private:
         for (auto& peer : peers) {
             std::vector<char> resp_data = peer->sendRPC(payload);
 
-            // --- DEBUG START ---
+            //debug
             if (resp_data.empty()) {
                     std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned empty response!" << std::endl;
             } else if (resp_data[0] != 'W') {
                 std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned bad type: " << (int)resp_data[0] << std::endl;
             }
-            else  {
-                std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " skfgudschksdkdj " << (int)resp_data[0] << std::endl;
-            }
-            // --- DEBUG END ---
+            //Debug
 
             if (!resp_data.empty() && resp_data[0] == 'W') {
                 RequestVoteResponse resp = RequestVoteResponse::deserialize(resp_data);
@@ -222,6 +219,7 @@ public:
         replay();
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
+        if (node_id == 1) current_timeout = 0; // for debugging
     }
 
     void startBackground() { 

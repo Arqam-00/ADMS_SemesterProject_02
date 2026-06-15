@@ -19,7 +19,7 @@ for i in {1..5}; do
     # Create a new pane for each node
     tmux split-window -h -t raft:0
     tmux select-layout -t raft:0 tiled
-    tmux send-keys -t raft:0.$((i-1)) "build/raftkv --id $i --port $((600bb0+i)) --raft-port $((6000+i)) --peers \"$peers\" --data data/d$i" Enter
+    tmux send-keys -t raft:0.$((i-1)) "build/raftkv --id $i --port $((6000+i)) --raft-port $((6000+i)) --peers \"$peers\" --data data/d$i" Enter
 done
 
 # Create the 6th pane for the client
