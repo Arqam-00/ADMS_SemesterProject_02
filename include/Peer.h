@@ -48,7 +48,11 @@
                             sock_fd = fd;
                             connected = true;
                             cv.notify_all();   // wake any waiting sendRPC
+                            std::cerr << "[Peer " << id << "] Connected to " << ip << ":" << port << std::endl;
                             continue;
+                        }else{
+                            std::cerr << "[Peer " << id << "] Failed to connect with " << ip << ":" << port 
+                             << " errno=" << errno << " (" << strerror(errno) << ")" <<  std::endl;
                         }
                         close(fd);
                     }

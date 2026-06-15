@@ -13,13 +13,13 @@ for i in {1..5}; do
     for j in {1..5}; do
         if [ $j -ne $i ]; then
             if [ -n "$peers" ]; then peers="$peers,"; fi
-            peers="$peers$j@127.0.0.1:$((7000+j))"
+            peers="$peers$j@127.0.0.1:$((6000+j))"
         fi
     done
     # Create a new pane for each node
     tmux split-window -h -t raft:0
     tmux select-layout -t raft:0 tiled
-    tmux send-keys -t raft:0.$((i-1)) "build/raftkv --id $i --port $((6000+i)) --raft-port $((7000+i)) --peers \"$peers\" --data data/d$i" Enter
+    tmux send-keys -t raft:0.$((i-1)) "build/raftkv --id $i --port $((600bb0+i)) --raft-port $((6000+i)) --peers \"$peers\" --data data/d$i" Enter
 done
 
 # Create the 6th pane for the client

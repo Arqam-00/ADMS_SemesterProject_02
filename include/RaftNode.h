@@ -49,7 +49,7 @@ private:
     }
 
     int getRandomTimeout() {
-        return 300 + rand() % 201;
+        return 3000 + rand() % 201;
     }
 
     void startElection(std::unique_lock<std::mutex>& lock) {
@@ -59,7 +59,7 @@ private:
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
 
-        std::cout << "\n[Node " << node_id << "] Election timeout! Starting election for term " << store.getTerm() << "time out "<< getRandomTimeout() << "\n";
+        std::cout << "\n[Node " << node_id << "] Election timeout! Starting election for term " << store.getTerm() << "\n";
 
         RequestVote rpc;
         rpc.term = store.getTerm();
@@ -225,7 +225,7 @@ public:
     }
 
     void startBackground() { 
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(3));
         last_heartbeat = std::chrono::steady_clock::now();
         background_thread = std::thread(&RaftNode::backgroundLoop, this);
     }

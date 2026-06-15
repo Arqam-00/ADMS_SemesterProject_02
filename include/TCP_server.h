@@ -91,8 +91,14 @@ public:
         addr.sin_family = AF_INET;
         addr.sin_port = htons(port);
         addr.sin_addr.s_addr = INADDR_ANY;
-        bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
-        listen(server_fd, 5);
+        if(bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
+            perror("bind");
+            exit(1);
+        }
+        if(listen(server_fd, 5)<0){
+            perror("listen");
+            exit(1);
+        }
     }
 
     ~TCPServer() {
