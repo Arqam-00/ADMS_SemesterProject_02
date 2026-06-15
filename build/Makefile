@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02
+CMAKE_SOURCE_DIR = /root/ADBMS_RAFTProj/ADMS_SemesterProject_02
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build
+CMAKE_BINARY_DIR = /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -117,17 +117,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named raftkvid
+# Target rules for targets named raftkv
 
 # Build rule for target.
-raftkvid: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 raftkvid
-.PHONY : raftkvid
+raftkv: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 raftkv
+.PHONY : raftkv
 
 # fast build rule for target.
-raftkvid/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/build
-.PHONY : raftkvid/fast
+raftkv/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/build
+.PHONY : raftkv/fast
 
 #=============================================================================
 # Target rules for targets named raftkv-cli
@@ -171,7 +171,7 @@ src/server.o: src/server.cpp.o
 
 # target to build an object file
 src/server.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/src/server.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/src/server.cpp.o
 .PHONY : src/server.cpp.o
 
 src/server.i: src/server.cpp.i
@@ -179,7 +179,7 @@ src/server.i: src/server.cpp.i
 
 # target to preprocess a source file
 src/server.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/src/server.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/src/server.cpp.i
 .PHONY : src/server.cpp.i
 
 src/server.s: src/server.cpp.s
@@ -187,7 +187,7 @@ src/server.s: src/server.cpp.s
 
 # target to generate assembly for a file
 src/server.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/src/server.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/src/server.cpp.s
 .PHONY : src/server.cpp.s
 
 # Help Target
@@ -198,8 +198,8 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... raftkv"
 	@echo "... raftkv-cli"
-	@echo "... raftkvid"
 	@echo "... src/client.o"
 	@echo "... src/client.i"
 	@echo "... src/client.s"

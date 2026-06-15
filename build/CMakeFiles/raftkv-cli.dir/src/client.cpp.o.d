@@ -1,5 +1,5 @@
 CMakeFiles/raftkv-cli.dir/src/client.cpp.o: \
- /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/src/client.cpp \
+ /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/src/client.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/13/iostream \
  /usr/include/c++/13/bits/requires_hosted.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
@@ -178,7 +178,7 @@ CMakeFiles/raftkv-cli.dir/src/client.cpp.o: \
  /usr/include/c++/13/bits/stl_heap.h \
  /usr/include/c++/13/bits/uniform_int_dist.h \
  /usr/include/c++/13/bits/stl_tempbuf.h \
- /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/src/../include/Command.h \
+ /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/src/../include/Command.h \
  /usr/include/c++/13/vector /usr/include/c++/13/bits/stl_uninitialized.h \
  /usr/include/c++/13/bits/stl_vector.h \
  /usr/include/c++/13/bits/stl_bvector.h \

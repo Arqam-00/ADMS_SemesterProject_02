@@ -1,4 +1,4 @@
-/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles/raftkvid.dir
-/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles/raftkv-cli.dir
-/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles/edit_cache.dir
-/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles/rebuild_cache.dir
+/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles/raftkv.dir
+/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles/raftkv-cli.dir
+/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles/edit_cache.dir
+/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles/rebuild_cache.dir

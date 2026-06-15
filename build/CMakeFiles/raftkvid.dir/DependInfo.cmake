@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/src/server.cpp" "CMakeFiles/raftkvid.dir/src/server.cpp.o" "gcc" "CMakeFiles/raftkvid.dir/src/server.cpp.o.d"
+  "/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/src/server.cpp" "CMakeFiles/raftkvid.dir/src/server.cpp.o" "gcc" "CMakeFiles/raftkvid.dir/src/server.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

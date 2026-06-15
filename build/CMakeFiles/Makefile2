@@ -54,16 +54,16 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02
+CMAKE_SOURCE_DIR = /root/ADBMS_RAFTProj/ADMS_SemesterProject_02
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build
+CMAKE_BINARY_DIR = /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build
 
 #=============================================================================
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/raftkvid.dir/all
+all: CMakeFiles/raftkv.dir/all
 all: CMakeFiles/raftkv-cli.dir/all
 .PHONY : all
 
@@ -72,35 +72,35 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/raftkvid.dir/clean
+clean: CMakeFiles/raftkv.dir/clean
 clean: CMakeFiles/raftkv-cli.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/raftkvid.dir
+# Target rules for target CMakeFiles/raftkv.dir
 
 # All Build rule for target.
-CMakeFiles/raftkvid.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles --progress-num=3,4 "Built target raftkvid"
-.PHONY : CMakeFiles/raftkvid.dir/all
+CMakeFiles/raftkv.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles --progress-num=1,2 "Built target raftkv"
+.PHONY : CMakeFiles/raftkv.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/raftkvid.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/raftkvid.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles 0
-.PHONY : CMakeFiles/raftkvid.dir/rule
+CMakeFiles/raftkv.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/raftkv.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles 0
+.PHONY : CMakeFiles/raftkv.dir/rule
 
 # Convenience name for target.
-raftkvid: CMakeFiles/raftkvid.dir/rule
-.PHONY : raftkvid
+raftkv: CMakeFiles/raftkv.dir/rule
+.PHONY : raftkv
 
 # clean rule for target.
-CMakeFiles/raftkvid.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkvid.dir/build.make CMakeFiles/raftkvid.dir/clean
-.PHONY : CMakeFiles/raftkvid.dir/clean
+CMakeFiles/raftkv.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv.dir/build.make CMakeFiles/raftkv.dir/clean
+.PHONY : CMakeFiles/raftkv.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/raftkv-cli.dir
@@ -109,14 +109,14 @@ CMakeFiles/raftkvid.dir/clean:
 CMakeFiles/raftkv-cli.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv-cli.dir/build.make CMakeFiles/raftkv-cli.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/raftkv-cli.dir/build.make CMakeFiles/raftkv-cli.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles --progress-num=1,2 "Built target raftkv-cli"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles --progress-num=3,4 "Built target raftkv-cli"
 .PHONY : CMakeFiles/raftkv-cli.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/raftkv-cli.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/raftkv-cli.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/build/CMakeFiles 0
 .PHONY : CMakeFiles/raftkv-cli.dir/rule
 
 # Convenience name for target.

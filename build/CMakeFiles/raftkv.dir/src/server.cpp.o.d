@@ -1,4 +1,4 @@
-CMakeFiles/raftkvid.dir/src/server.cpp.o: \
+CMakeFiles/raftkv.dir/src/server.cpp.o: \
  /root/ADBMS_RAFTProj/ADMS_SemesterProject_02/src/server.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/13/iostream \
  /usr/include/c++/13/bits/requires_hosted.h \

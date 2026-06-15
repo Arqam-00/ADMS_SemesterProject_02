@@ -49,10 +49,7 @@ private:
     }
 
     int getRandomTimeout() {
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dist(800, 1200);
-        return dist(gen);
+        return 300 + rand() % 201;
     }
 
     void startElection(std::unique_lock<std::mutex>& lock) {
@@ -62,7 +59,7 @@ private:
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
 
-        std::cout << "\n[Node " << node_id << "] Election timeout! Starting election for term " << store.getTerm() << "\n";
+        std::cout << "\n[Node " << node_id << "] Election timeout! Starting election for term " << store.getTerm() << "time out "<< getRandomTimeout() << "\n";
 
         RequestVote rpc;
         rpc.term = store.getTerm();
@@ -76,6 +73,18 @@ private:
         lock.unlock();
         for (auto& peer : peers) {
             std::vector<char> resp_data = peer->sendRPC(payload);
+
+            // --- DEBUG START ---
+            if (resp_data.empty()) {
+                    std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned empty response!" << std::endl;
+            } else if (resp_data[0] != 'W') {
+                std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned bad type: " << (int)resp_data[0] << std::endl;
+            }
+            else  {
+                std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " skfgudschksdkdj " << (int)resp_data[0] << std::endl;
+            }
+            // --- DEBUG END ---
+
             if (!resp_data.empty() && resp_data[0] == 'W') {
                 RequestVoteResponse resp = RequestVoteResponse::deserialize(resp_data);
                 if (resp.term > store.getTerm()) {
@@ -89,7 +98,7 @@ private:
                         lock.unlock();
                         return;
                     }
-                    lock.lock();
+                    lock.unlock();
                 } else if (resp.voteGranted) {
                     votes++;
                 }
@@ -141,7 +150,7 @@ private:
                 state = NodeState::FOLLOWER;
                 store.setVoted("");
                 return;
-            } else if (resp.success) {
+            } else if (resp.success && !ae.entries.empty()) {
                 uint64_t last_sent = ae.prevLogIndex + ae.entries.size();
                 matchIndex[peer_idx] = std::max(matchIndex[peer_idx], last_sent);
                 nextIndex[peer_idx] = matchIndex[peer_idx] + 1;
@@ -149,6 +158,8 @@ private:
             } else {
                 if (nextIndex[peer_idx] > 1) nextIndex[peer_idx]--;
             }
+        } else {
+            if (nextIndex[peer_idx] > 1) nextIndex[peer_idx]--;
         }
     }
 
@@ -191,11 +202,9 @@ private:
                 auto now = std::chrono::steady_clock::now();
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count() >= 200) {
                     last_heartbeat = now;
-                    lock.unlock();
                     for (size_t i = 0; i < peers.size(); ++i) {
                         sendAppendEntries(i);
                     }
-                    lock.lock();
                 }
             } else {
                 auto now = std::chrono::steady_clock::now();
@@ -209,9 +218,15 @@ private:
 public:
     RaftNode(int id, std::vector<std::shared_ptr<Peer>> cluster_peers)
         : node_id(id), peers(cluster_peers), state(NodeState::FOLLOWER), running(true), current_leader_id(0) {
+        srand(time(nullptr) + node_id + getpid()); //for randomness
         replay();
         last_heartbeat = std::chrono::steady_clock::now();
         current_timeout = getRandomTimeout();
+    }
+
+    void startBackground() { 
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        last_heartbeat = std::chrono::steady_clock::now();
         background_thread = std::thread(&RaftNode::backgroundLoop, this);
     }
 
@@ -221,20 +236,49 @@ public:
     }
 
     void submit(const Command& cmd) {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         if (state != NodeState::LEADER) throw std::runtime_error("NOT_LEADER");
         uint64_t idx = store.logLen() + 1;
         LogEntry entry(store.getTerm(), idx, cmd);
         store.append(entry);
+        for (size_t i = 0; i < peers.size(); ++i) {
+            sendAppendEntries(i);
+        }
+        // Wait for this entry to be committed
+        while (store.getCommit() < idx) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)); //estimated time
+            lock.lock();
+        }
+        // sfter commiting the entry , apply it to state machine
+        applyCommitted();
     }
 
-    std::string get(const std::string& key) const {
-        std::lock_guard<std::mutex> lock(mtx);
+    std::string get(const std::string& key) {
+        std::unique_lock<std::mutex> lock(mtx);
+        if (state != NodeState::LEADER) throw std::runtime_error("NOT_LEADER");
+        uint64_t idx = store.logLen() + 1;
+        Command noop(OpType::NOOP);
+        LogEntry entry(store.getTerm(), idx, noop);
+        store.append(entry);
+        for (size_t i = 0; i < peers.size(); ++i) {
+            sendAppendEntries(i);
+        }
+        // Wait for NOOP to be committed
+        while (store.getCommit() < idx) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            lock.lock();
+        }
+        // Verify still leader after commit
+        if (state != NodeState::LEADER) {
+            throw std::runtime_error("NOT_LEADER");
+        }
         return sm.get(key);
     }
 
     std::string getStatus() const {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         std::ostringstream oss;
         oss << "node_id: " << node_id << "\n";
         oss << "state: " << (state == NodeState::LEADER ? "LEADER" : (state == NodeState::CANDIDATE ? "CANDIDATE" : "FOLLOWER")) << "\n";
@@ -321,9 +365,9 @@ public:
         if (rpc.leaderCommit > store.getCommit()) {
             uint64_t new_commit = std::min(rpc.leaderCommit, store.getLastLogIndex());
             store.setCommit(new_commit);
-            applyCommitted();
+            
         }
-
+        applyCommitted();
         resp.success = true;
         return resp;
     }

@@ -23,16 +23,19 @@ private:
     uint64_t lastApplied;
 
     void save_meta() {
-        std::ofstream f("raft.meta.tmp", std::ios::binary);
-        // term (8 bytes)
-        for (int i = 0; i < 8; i++) f.put((term >> (i * 8)) & 0xFF);
-        // last_log_term (8 bytes)
-        for (int i = 0; i < 8; i++) f.put((last_log_term >> (i * 8)) & 0xFF);
-        // voted string length and data
+        int fd = open("raft.meta.tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        for (int i = 0; i < 8; i++) {
+            char b = (term >> (i * 8)) & 0xFF;
+            write(fd, &b, 1);
+        }
         uint32_t len = htonl(voted.size());
-        for (int i = 0; i < 4; i++) f.put((len >> (i * 8)) & 0xFF);
-        f.write(voted.data(), voted.size());
-        f.close();
+        for (int i = 0; i < 4; i++) {
+            char b = (len >> (i * 8)) & 0xFF;
+            write(fd, &b, 1);
+        }
+        write(fd, voted.data(), voted.size());
+        fsync(fd);
+        close(fd);
         rename("raft.meta.tmp", "raft.meta");
     }
 
@@ -49,9 +52,6 @@ private:
             term |= (uint64_t)(uint8_t)f.get() << (i * 8);
         }
         last_log_term = 0;
-        for (int i = 0; i < 8; i++) {
-            last_log_term |= (uint64_t)(uint8_t)f.get() << (i * 8);
-        }
         uint32_t len = 0;
         for (int i = 0; i < 4; i++) {
             len |= (uint32_t)(uint8_t)f.get() << (i * 8);

@@ -61,6 +61,8 @@ int main(int argc, char* argv[]) {
     
     RaftNode raft(node_id, peers);
     TCPServer server(raft, port);
-    server.run();
+    std::thread server_thread(&TCPServer::run, &server);
+    raft.startBackground();
+    server_thread.join();
     return 0;
 }

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/raftkv.dir/src/server.cpp.o -o raftkv  -lpthread 

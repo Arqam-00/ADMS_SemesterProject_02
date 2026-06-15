@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Server executable
-add_executable(raftkvid
+add_executable(raftkv
     src/server.cpp
 )
 
@@ -18,5 +18,5 @@ add_executable(raftkv-cli
 )
 
 # Link pthread for threading support
-target_link_libraries(raftkvid pthread)
+target_link_libraries(raftkv pthread)
 target_link_libraries(raftkv-cli pthread)

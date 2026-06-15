@@ -7,7 +7,7 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/CMakeLists.txt"
+  "/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/CMakeLists.txt"
   "CMakeFiles/3.28.3/CMakeCCompiler.cmake"
   "CMakeFiles/3.28.3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.28.3/CMakeSystem.cmake"
@@ -44,6 +44,6 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/raftkvid.dir/DependInfo.cmake"
+  "CMakeFiles/raftkv.dir/DependInfo.cmake"
   "CMakeFiles/raftkv-cli.dir/DependInfo.cmake"
   )

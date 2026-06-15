@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/abdul_quddos/adbms_p2/ADMS_SemesterProject_02/include
+CXX_INCLUDES = -I/root/ADBMS_RAFTProj/ADMS_SemesterProject_02/include
 
 CXX_FLAGS = -std=gnu++11
 
