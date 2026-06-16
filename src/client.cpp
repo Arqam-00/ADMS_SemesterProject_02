@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
                     }
                 } else if (response.find("NOT_LEADER unknown") != std::string::npos) {
                     std::cout << "Leader unknown, retry later!" << std::endl;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     std::cout << "Retrying!"<<std::endl;
 
                 } else {

@@ -36,6 +36,7 @@ private:
     std::vector<uint64_t> nextIndex;
     std::vector<uint64_t> matchIndex;
 
+    std::atomic<bool> noop_committed;
     void replay() {
         std::cout << "============== Raft node " << node_id << " initiated ===================\n";
         auto entries = store.readAll();
@@ -53,6 +54,7 @@ private:
     }
 
     void startElection(std::unique_lock<std::mutex>& lock) {
+        current_leader_id = 0;
         state = NodeState::CANDIDATE;
         store.setTerm(store.getTerm() + 1);
         store.setVoted(std::to_string(node_id));
@@ -76,9 +78,9 @@ private:
 
             //debug
             if (resp_data.empty()) {
-                    std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned empty response!" << std::endl;
+                //    std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned empty response!" << std::endl;
             } else if (resp_data[0] != 'W') {
-                std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned bad type: " << (int)resp_data[0] << std::endl;
+                //std::cerr << "[Node " << node_id << "] WARNING: Peer " << peer->getId() << " returned bad type: " << (int)resp_data[0] << std::endl;
             }
             //Debug
 
@@ -90,6 +92,8 @@ private:
                         store.setTerm(resp.term);
                         state = NodeState::FOLLOWER;
                         store.setVoted("");
+                        current_leader_id = 0;
+                    
                         last_heartbeat = std::chrono::steady_clock::now();
                         current_timeout = getRandomTimeout();
                         lock.unlock();
@@ -118,11 +122,16 @@ private:
         uint64_t last = store.getLastLogIndex();
         nextIndex.assign(peers.size(), last + 1);
         matchIndex.assign(peers.size(), 0);
+        noop_committed = false;
         Command noop(OpType::NOOP);
         uint64_t new_idx = store.logLen() + 1;
         LogEntry entry(store.getTerm(), new_idx, noop);
         store.append(entry);
         std::cout << "\n*** [Node " << node_id << "] IS NOW LEADER FOR TERM " << store.getTerm() << " ***\n";
+
+        for (size_t i = 0; i < peers.size(); ++i) {
+            sendAppendEntries(i);
+        }
     }
 
     void sendAppendEntries(size_t peer_idx) {
@@ -133,16 +142,22 @@ private:
         ae.leaderCommit = store.getCommit();
         ae.prevLogIndex = nextIndex[peer_idx] - 1;
         ae.prevLogTerm = (ae.prevLogIndex == 0) ? 0 : store.getTermAt(ae.prevLogIndex);
+
         if (nextIndex[peer_idx] <= store.getLastLogIndex()) {
             auto entries = store.readFrom(nextIndex[peer_idx]);
             for (auto& e : entries) ae.entries.push_back(e);
         }
         auto payload = ae.serialize();
+
+        
+
         std::vector<char> resp_data = peer->sendRPC(payload);
+
+        if(resp_data.empty())matchIndex[peer_idx] = 0;
+        
         if (!resp_data.empty() && resp_data[0] == 'R') {
             AppendEntriesResponse resp = AppendEntriesResponse::deserialize(resp_data);
             if (resp.term > store.getTerm()) {
-                std::lock_guard<std::mutex> lock(mtx);
                 store.setTerm(resp.term);
                 state = NodeState::FOLLOWER;
                 store.setVoted("");
@@ -152,21 +167,23 @@ private:
                 matchIndex[peer_idx] = std::max(matchIndex[peer_idx], last_sent);
                 nextIndex[peer_idx] = matchIndex[peer_idx] + 1;
                 advanceCommitIndex();
-            } else {
-                if (nextIndex[peer_idx] > 1) nextIndex[peer_idx]--;
+            } else if (!ae.entries.empty() && nextIndex[peer_idx] > 1) {
+                nextIndex[peer_idx]--;
             }
-        } else {
-            if (nextIndex[peer_idx] > 1) nextIndex[peer_idx]--;
+        } else if (!ae.entries.empty() && nextIndex[peer_idx] > 1) {
+            nextIndex[peer_idx]--;
         }
     }
 
     void advanceCommitIndex() {
         uint64_t new_commit = store.getCommit();
+
         for (uint64_t idx = new_commit + 1; idx <= store.getLastLogIndex(); ++idx) {
             if (store.getTermAt(idx) != store.getTerm()) continue;
+
             int count = 1;
             for (size_t j = 0; j < peers.size(); ++j) {
-                if (matchIndex[j] >= idx) count++;
+                if (peers[j]->isConnected() && matchIndex[j] >= idx) count++;
             }
             if (count >= (peers.size()+1)/2 + 1) {
                 new_commit = idx;
@@ -197,11 +214,13 @@ private:
 
             if (state == NodeState::LEADER) {
                 auto now = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count() >= 200) {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_heartbeat).count() >= 100) {
                     last_heartbeat = now;
+                    lock.unlock();
                     for (size_t i = 0; i < peers.size(); ++i) {
                         sendAppendEntries(i);
                     }
+                    lock.lock();
                 }
             } else {
                 auto now = std::chrono::steady_clock::now();
@@ -236,12 +255,15 @@ public:
     void submit(const Command& cmd) {
         std::unique_lock<std::mutex> lock(mtx);
         if (state != NodeState::LEADER) throw std::runtime_error("NOT_LEADER");
+        if (!Requestable()) throw std::runtime_error("NOT_ENOUGH_PEERS");
         uint64_t idx = store.logLen() + 1;
         LogEntry entry(store.getTerm(), idx, cmd);
         store.append(entry);
+        lock.unlock();
         for (size_t i = 0; i < peers.size(); ++i) {
             sendAppendEntries(i);
         }
+        lock.lock();
         // Wait for this entry to be committed
         while (store.getCommit() < idx) {
             lock.unlock();
@@ -259,9 +281,11 @@ public:
         Command noop(OpType::NOOP);
         LogEntry entry(store.getTerm(), idx, noop);
         store.append(entry);
+        lock.unlock();
         for (size_t i = 0; i < peers.size(); ++i) {
             sendAppendEntries(i);
         }
+        lock.lock();
         // Wait for NOOP to be committed
         while (store.getCommit() < idx) {
             lock.unlock();
@@ -288,6 +312,14 @@ public:
 
     int getLeaderId() const { return current_leader_id; }
 
+    bool Requestable(){
+        int c = 0;
+        for(auto p: peers){
+            if(p->isConnected())c++;
+        }
+        return c >= (peers.size()+1)/2;
+    }
+
     RequestVoteResponse handleRequestVote(const RequestVote& rpc) {
         std::lock_guard<std::mutex> lock(mtx);
         RequestVoteResponse resp;
@@ -300,8 +332,12 @@ public:
             store.setTerm(rpc.term);
             state = NodeState::FOLLOWER;
             store.setVoted("");
+            current_leader_id = 0; 
+            last_heartbeat = std::chrono::steady_clock::now();
+            current_timeout = getRandomTimeout();
             resp.term = rpc.term;
         }
+        
 
         std::string votedFor = store.getVoted();
         bool logOk = (rpc.lastLogTerm > store.getLastLogTerm()) ||
@@ -327,8 +363,11 @@ public:
 
         if (rpc.term > store.getTerm()) {
             store.setTerm(rpc.term);
-            state = NodeState::FOLLOWER;
             store.setVoted("");
+        }
+
+        if (rpc.term == store.getTerm()) {
+            state = NodeState::FOLLOWER;
         }
         // Always reset election timeout and update leader id
         last_heartbeat = std::chrono::steady_clock::now();

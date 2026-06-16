@@ -125,10 +125,11 @@ public:
                 if (entry.verify()) {
                     entries.push_back(entry);
                 } else {
-                    std::cerr << "Log corruption detected at index " << entry.index << std::endl;
+                    std::cerr << "Log corruption detected. Stopping read." << std::endl;
                     break;
                 }
             } catch (...) {
+                std::cerr << "Failed to deserialize log entry. Stopping read." << std::endl;
                 break;
             }
         }

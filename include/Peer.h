@@ -53,8 +53,8 @@
                             continue;
                         }else{
                             //std::this_thread::sleep_for(std::chrono::milliseconds(10 * id));
-                            std::cerr << "[Peer " << id << "] Failed to connect with " << ip << ":" << port 
-                             << " errno=" << errno << " (" << strerror(errno) << ")" <<  std::endl;
+                            //std::cerr << "[Peer " << id << "] Failed to connect with " << ip << ":" << port 
+                            // << " errno=" << errno << " (" << strerror(errno) << ")" <<  std::endl;
                         }
                         close(fd);
                     }
