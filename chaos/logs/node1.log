@@ -235,3 +235,115 @@ Applying command: NOOP
 Applying command: NOOP
 Client server ready on port 6001
 Raft server ready on port 7001
+[Node 1] Voted for Node 5 in term 1199
+[Node 1] Voted for Node 5 in term 1200
+[Node 1] Voted for Node 5 in term 1201
+
+[Node 1] Election timeout! Starting election for term 1202
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1203
+[Node 1] Voted for Node 5 in term 1204
+
+[Node 1] Election timeout! Starting election for term 1205
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1206
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1207
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1208
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1209
+
+[Node 1] Election timeout! Starting election for term 1210
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1211
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1212
+
+[Node 1] Election timeout! Starting election for term 1213
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1214
+[Node 1] Voted for Node 5 in term 1215
+
+[Node 1] Election timeout! Starting election for term 1216
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1217
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1218
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1219
+[Node 1] Voted for Node 5 in term 1220
+
+[Node 1] Election timeout! Starting election for term 1221
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1222
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1223
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1224
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1225
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1226
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1227
+
+[Node 1] Election timeout! Starting election for term 1228
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1229
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1230
+[Node 1] Voted for Node 5 in term 1231
+[Node 1] Voted for Node 5 in term 1232
+[Node 1] Voted for Node 5 in term 1233
+
+[Node 1] Election timeout! Starting election for term 1234
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1235
+[Node 1] Voted for Node 5 in term 1236
+
+[Node 1] Election timeout! Starting election for term 1237
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1238
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1239
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1240
+
+[Node 1] Election timeout! Starting election for term 1241
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1242
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1243
+[Node 1] Election finished with 1 votes (need 3).
+[Node 1] Voted for Node 5 in term 1244
+
+[Node 1] Election timeout! Starting election for term 1245
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1246
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1247
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Election timeout! Starting election for term 1248
+[Node 1] Election finished with 1 votes (need 3).
+
+[Node 1] Electi

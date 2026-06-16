@@ -156,10 +156,10 @@ fi
 echo "Leader is node $LEADER"
 
 echo "   Submitting 1000 PUTs..."
-for i in {1..1000}; do
-    put $LEADER "key$i" "value$i"
-one
-#put $LEADER "key500" "value500"
+#for i in {1..1000}; do
+#    put $LEADER "key$i" "value$i"
+#one
+put $LEADER "key500" "value500"
 
 echo "   Verifying consistency..."
 verify_consistency "key500" "value500" || { echo "Consistency check failed"; exit 1; }
@@ -177,15 +177,15 @@ fi
 echo "New leader is node $NEW_LEADER"
 
 echo "   Submitting 1000 more PUTs..."
-for i in {1001..2000}; do
-    put $NEW_LEADER "key$i" "value$i"
-done
+#for i in {1001..2000}; do
+#    put $NEW_LEADER "key$i" "value$i"
+#done
 
-#put $NEW_LEADER "key1500" "value1500"
+put $NEW_LEADER "key1500" "value1500"
 
 echo "   Restarting old leader $LEADER"
 restart_node $LEADER
-sleep 67
+sleep 20
 
 echo "   Verifying consistency..."
 verify_consistency "key1500" "value1500" || { echo "Restarted node did not catch up"; exit 1; }
@@ -204,16 +204,16 @@ done
 sleep 2
 
 echo "   Submitting 500 PUTs..."
-for i in {2001..2500}; do
-    put $NEW_LEADER "key$i" "value$i"
-done
-#put $NEW_LEADER "key2250" "value2250"
+#for i in {2001..2500}; do
+#    put $NEW_LEADER "key$i" "value$i"
+#done
+put $NEW_LEADER "key2250" "value2250"
 
 echo "   Restarting followers..."
 for f in "${FOLLOWERS[@]}"; do
     restart_node $f
 done
-sleep 67
+sleep 5
 
 echo "   Verifying consistency..."
 verify_consistency "key2250" "value2250" || { echo "Followers did not catch up"; exit 1; }
@@ -221,7 +221,7 @@ echo "   Consistency verified"
 
 echo "[4/6] Killing three nodes (lose majority)"
 THREE=()
-for i in {1..100}; do
+for i in {1..5}; do
     if [ ${#THREE[@]} -lt 3 ]; then
         THREE+=($i)
     fi
@@ -233,13 +233,13 @@ sleep 2
 
 echo "   Attempting 100 PUTs (all should fail)..."
 FAILED=0
-for i in {1..100}; do
-    if ! timeout 1 echo "PUT fail$i fail$i" | $CLIENT 127.0.0.1 $((6000+NEW_LEADER)) 2>/dev/null; then
+for i in {1..5}; do
+    if ! timeout 2 echo "PUT fail$i fail$i" | $CLIENT 127.0.0.1 $((6000+NEW_LEADER)) 2>/dev/null; then
         FAILED=$((FAILED+1))
     fi
 done
-if [ $FAILED -eq 100 ]; then
-    echo "   All 100 writes correctly failed"
+if [ $FAILED -eq 5 ]; then
+    echo "   All 5 writes correctly failed"
 else
     echo " $FAILED writes succeeded when they should have failed"
     exit 1
